@@ -1,0 +1,57 @@
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.egg-info/
+*.egg
+dist/
+build/
+
+# django
+*.log
+*.pot
+*.pyc
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/
+.static/
+
+# ide
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+.cursor/
+.env.local
+.env.*.local
+
+# railway
+.env
+.railway/
+railway.json
+
+# git
+*.orig
+
+# testing
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json

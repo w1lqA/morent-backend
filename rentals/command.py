@@ -81,3 +81,14 @@ class RentalCommandInvoker:
             command = self._history.pop()
             return command.undo()
         return False
+
+    def undo_all(self):
+        undone_count = 0
+        while self._history:
+            command = self._history.pop()
+            if command.undo():
+                undone_count += 1
+        return undone_count
+
+    def get_history(self):
+        return self._history.copy()

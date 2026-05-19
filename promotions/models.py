@@ -43,3 +43,18 @@ class Promotion(models.Model):
 
     def __str__(self):
         return self.title
+
+class InsuranceType(models.TextChoices):
+    BASIC = 'basic', 'базовая'
+    FULL = 'full', 'полная'
+    CASCO = 'casco', 'каско'
+
+class Insurance(models.Model):
+    rental = models.ForeignKey('rentals.Rental', on_delete=models.CASCADE, related_name='insurances')
+    insurance_type = models.CharField(max_length=10, choices=InsuranceType.choices, default=InsuranceType.BASIC)
+    price = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"страховка {self.get_insurance_type_display()} для аренды {self.rental.id}"

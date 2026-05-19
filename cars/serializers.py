@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Car, Location, CarTag, CarImage
 
+
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
@@ -16,25 +17,30 @@ class LocationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("долгота должна быть между -180 и 180")
         return value
 
+
 class CarTagSerializer(serializers.ModelSerializer):
     class Meta:
         model = CarTag
         fields = ['id', 'name']
+
 
 class CarImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = CarImage
         fields = ['id', 'image', 'is_main', 'order']
 
+
 class CarListSerializer(serializers.ModelSerializer):
     location = LocationSerializer(read_only=True)
     tags = CarTagSerializer(many=True, read_only=True)
     main_image = serializers.SerializerMethodField()
+    required_license_display = serializers.CharField(source='get_required_license_display', read_only=True)
 
     class Meta:
         model = Car
         fields = ['id', 'brand', 'model', 'year', 'plate_number', 'tags', 'capacity',
-                  'steering', 'gasoline', 'status', 'price_per_minute', 'location', 'main_image']
+                  'steering', 'gasoline', 'status', 'price_per_minute', 'location',
+                  'main_image', 'required_license', 'required_license_display']
 
     def get_main_image(self, obj):
         main_img = obj.images.filter(is_main=True).first()
@@ -45,16 +51,18 @@ class CarListSerializer(serializers.ModelSerializer):
             return first_img.image.url
         return None
 
+
 class CarDetailSerializer(serializers.ModelSerializer):
     location = LocationSerializer(read_only=True)
     tags = CarTagSerializer(many=True, read_only=True)
     images = CarImageSerializer(many=True, read_only=True)
+    required_license_display = serializers.CharField(source='get_required_license_display', read_only=True)
 
     class Meta:
         model = Car
         fields = ['id', 'brand', 'model', 'year', 'plate_number', 'tags', 'capacity',
                   'steering', 'gasoline', 'description', 'status', 'price_per_minute',
-                  'location', 'images']
+                  'location', 'images', 'required_license', 'required_license_display']
 
     def validate_plate_number(self, value):
         if len(value) < 6 or len(value) > 9:
@@ -73,7 +81,9 @@ class CarDetailSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("цена за минуту должна быть больше 0")
         return value
 
+
 class NearestCarSerializer(serializers.Serializer):
     latitude = serializers.FloatField(min_value=-90, max_value=90)
     longitude = serializers.FloatField(min_value=-180, max_value=180)
+    radius = serializers.FloatField(min_value=0.1, max_value=50, default=5)
     limit = serializers.IntegerField(min_value=1, max_value=50, default=10)

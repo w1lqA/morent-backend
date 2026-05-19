@@ -1,55 +1,44 @@
 from django.core.cache import cache
-from cars.services import NearestCarFinder
 import hashlib
-import json
 
 
 class CarServiceProxy:
-    """Proxy для кеширования результатов поиска автомобилей"""
-
     def __init__(self, real_service):
         self._real_service = real_service
-        self._cache_timeout = 60  # 60 секунд кеширования
+        self._cache_timeout = 60
 
-    def _get_cache_key(self, user_lat, user_lon, limit):
-        key_data = f"{user_lat}:{user_lon}:{limit}"
+    def _get_cache_key(self, user_lat, user_lon, limit, radius=None):
+        key_data = f"{user_lat}:{user_lon}:{limit}:{radius}"
         return f"nearest_cars_{hashlib.md5(key_data.encode()).hexdigest()}"
 
-    def find_nearest_cars(self, user_lat, user_lon, limit=10):
-        # Проверяем кеш
-        cache_key = self._get_cache_key(user_lat, user_lon, limit)
+    def find_nearest_cars(self, user_lat, user_lon, limit=10, radius=None):
+        cache_key = self._get_cache_key(user_lat, user_lon, limit, radius)
         cached_result = cache.get(cache_key)
 
         if cached_result:
-            print(f"📦 [PROXY] Возвращаем из кеша: {len(cached_result)} автомобилей")
+            print(f"[proxy] возвращаем из кеша: {len(cached_result)} автомобилей")
             return cached_result
 
-        # Если нет в кеше, вызываем реальный сервис
-        print(f"🔍 [PROXY] Кеша нет, ищем реальные данные")
-        result = self._real_service.find_nearest_cars(user_lat, user_lon, limit)
+        print(f"[proxy] кеша нет, ищем реальные данные")
+        result = self._real_service.find_nearest_cars(user_lat, user_lon, limit, radius)
 
-        # Сохраняем в кеш
         cache.set(cache_key, result, self._cache_timeout)
-
         return result
 
     def clear_cache(self):
         cache.clear()
-        print("🗑️ [PROXY] Кеш очищен")
+        print("[proxy] кеш очищен")
 
 
 class AdminAccessProxy:
-    """Proxy для контроля доступа администратора"""
-
     def __init__(self, user):
         self._user = user
         self._real_service = None
 
     def _check_admin_access(self):
         from users.models import Role
-
         if not self._user or self._user.role != Role.ADMIN:
-            raise PermissionError("Доступ запрещен. Требуются права администратора.")
+            raise PermissionError("доступ запрещен. требуются права администратора.")
         return True
 
     def get_all_rentals(self):
@@ -73,19 +62,16 @@ class AdminAccessProxy:
 
 
 class ImageProxy:
-    """Proxy для ленивой загрузки изображений (экономия памяти)"""
-
     def __init__(self, image_url):
         self._image_url = image_url
         self._image = None
 
     def display(self):
         if not self._image:
-            print(f"🖼️ [PROXY] Загружаем изображение: {self._image_url}")
+            print(f"[proxy] загружаем изображение: {self._image_url}")
             self._image = self._load_image()
-        print(f"🖼️ [PROXY] Отображаем изображение")
+        print(f"[proxy] отображаем изображение")
         return self._image
 
     def _load_image(self):
-        # Здесь реальная загрузка изображения
-        return f"Loaded: {self._image_url}"
+        return f"loaded: {self._image_url}"

@@ -2,24 +2,25 @@ from abc import ABC, abstractmethod
 
 
 class Observer(ABC):
-    """Интерфейс наблюдателя"""
-
     @abstractmethod
     def update(self, event_type, data):
         pass
 
 
 class Subject:
-    """Субъект, за которым наблюдают"""
-
     def __init__(self):
         self._observers = []
 
     def attach(self, observer):
-        self._observers.append(observer)
+        if observer not in self._observers:
+            self._observers.append(observer)
 
     def detach(self, observer):
-        self._observers.remove(observer)
+        if observer in self._observers:
+            self._observers.remove(observer)
+
+    def get_observers(self):
+        return self._observers.copy()
 
     def notify(self, event_type, data):
         for observer in self._observers:
@@ -27,38 +28,30 @@ class Subject:
 
 
 class EmailNotifier(Observer):
-    """Наблюдатель для Email уведомлений"""
-
     def update(self, event_type, data):
         if event_type == 'rental_started':
-            print(f"📧 Письмо пользователю {data['user_email']}: Аренда начата")
+            print(f"email пользователю {data['user_email']}: аренда начата")
         elif event_type == 'rental_ended':
-            print(f"📧 Письмо пользователю {data['user_email']}: Аренда завершена. Сумма: {data['price']}")
+            print(f"email пользователю {data['user_email']}: аренда завершена. сумма: {data['price']}")
 
 
 class SMSNotifier(Observer):
-    """Наблюдатель для SMS уведомлений"""
-
     def update(self, event_type, data):
         if event_type == 'rental_started':
-            print(f"📱 SMS на {data['user_phone']}: Код доступа к авто {data['car_plate']}")
+            print(f"sms на {data['user_phone']}: код доступа к авто {data['car_plate']}")
         elif event_type == 'car_returned':
-            print(f"📱 SMS на {data['user_phone']}: Автомобиль возвращен")
+            print(f"sms на {data['user_phone']}: автомобиль возвращен")
 
 
 class AdminNotifier(Observer):
-    """Наблюдатель для администраторов"""
-
     def update(self, event_type, data):
         if event_type == 'user_verified':
-            print(f"👨‍💼 Админ: Пользователь {data['user_email']} прошел верификацию")
+            print(f"админ: пользователь {data['user_email']} прошел верификацию")
         elif event_type == 'issue_reported':
-            print(f"⚠️ Админ: Проблема с авто {data['car_id']}")
+            print(f"админ: проблема с авто {data['car_id']}")
 
 
 class RentalEventManager(Subject):
-    """Менеджер событий аренды"""
-
     def trigger_rental_started(self, user, car, rental):
         self.notify('rental_started', {
             'user_email': user.email,

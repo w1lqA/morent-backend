@@ -9,7 +9,7 @@ class NearestCarFinder:
         return math.sqrt((lat2 - lat1) ** 2 + (lon2 - lon1) ** 2)
 
     @classmethod
-    def find_nearest_cars(cls, user_lat, user_lon, limit=10):
+    def find_nearest_cars(cls, user_lat, user_lon, limit=10, radius=None):
         available_cars = Car.objects.filter(
             status=CarStatus.AVAILABLE
         ).select_related('location')
@@ -24,6 +24,9 @@ class NearestCarFinder:
                 float(car.location.latitude),
                 float(car.location.longitude)
             )
+
+            if radius is not None and distance > radius:
+                continue
 
             results.append({
                 'id': car.id,
@@ -44,6 +47,10 @@ class NearestCarFinder:
 
         results.sort(key=lambda x: x['distance'])
         return results[:limit]
+
+    @classmethod
+    def find_cars_in_radius(cls, user_lat, user_lon, radius_km=5):
+        return cls.find_nearest_cars(user_lat, user_lon, limit=100, radius=radius_km)
 
     @classmethod
     def get_nearest_car(cls, user_lat, user_lon):

@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import post_init
 from django.dispatch import receiver
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 
 
 def validate_year(value):
@@ -46,6 +47,12 @@ class SteeringType(models.TextChoices):
     ELECTRIC = 'electric', 'Электрическая'
 
 
+class LicenseCategory(models.TextChoices):
+    A = 'A', 'Мотоциклы'
+    B = 'B', 'Легковые авто'
+    C = 'C', 'Грузовые авто'
+
+
 class CarTag(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
@@ -63,11 +70,16 @@ class Car(models.Model):
     location = models.ForeignKey(Location, on_delete=models.SET_NULL, null=True)
     tags = models.ManyToManyField(CarTag, through='CarTagMap')
 
-    # новые поля
     capacity = models.IntegerField(default=4, validators=[MinValueValidator(1), MaxValueValidator(50)])
     steering = models.CharField(max_length=20, choices=SteeringType.choices, default=SteeringType.AUTOMATIC)
     gasoline = models.CharField(max_length=20, default="50L")
     description = models.TextField(blank=True, null=True)
+
+    required_license = models.CharField(
+        max_length=10,
+        choices=LicenseCategory.choices,
+        default=LicenseCategory.B
+    )
 
     _car_state = None
 

@@ -6,6 +6,9 @@ from .services import NearestCarFinder
 from .serializers import NearestCarSerializer, CarListSerializer, CarDetailSerializer
 from .models import Car
 from core.proxy import CarServiceProxy
+from core.facade import RentalFacade
+from cars.adapter import CategoryAdapter, InternalCategoryService, LicenseCategoryAdapter
+
 
 class NearestCarsView(APIView):
     def post(self, request):
@@ -14,11 +17,15 @@ class NearestCarsView(APIView):
             user_lat = serializer.validated_data['latitude']
             user_lon = serializer.validated_data['longitude']
             limit = serializer.validated_data['limit']
+            radius = serializer.validated_data.get('radius')
 
             real_service = NearestCarFinder()
             proxy_service = CarServiceProxy(real_service)
 
-            nearest_cars = proxy_service.find_nearest_cars(user_lat, user_lon, limit)
+            if radius:
+                nearest_cars = proxy_service.find_nearest_cars(user_lat, user_lon, limit, radius)
+            else:
+                nearest_cars = proxy_service.find_nearest_cars(user_lat, user_lon, limit)
 
             return Response({
                 'count': len(nearest_cars),
@@ -28,16 +35,57 @@ class NearestCarsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+class CarsInRadiusView(APIView):
+    def post(self, request):
+        serializer = NearestCarSerializer(data=request.data)
+        if serializer.is_valid():
+            user_lat = serializer.validated_data['latitude']
+            user_lon = serializer.validated_data['longitude']
+            radius = serializer.validated_data.get('radius', 5)
+
+            cars_in_radius = NearestCarFinder.find_cars_in_radius(user_lat, user_lon, radius)
+
+            return Response({
+                'radius_km': radius,
+                'count': len(cars_in_radius),
+                'cars': cars_in_radius
+            }, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CategoryAdapterView(APIView):
+    def get(self, request):
+        internal_service = InternalCategoryService()
+        adapter = CategoryAdapter(internal_service)
+        categories = adapter.get_categories()
+        return Response({'categories': categories})
+
+
+class LicenseCategoryAdapterView(APIView):
+    def get(self, request):
+        adapter = LicenseCategoryAdapter()
+        categories = adapter.get_categories()
+        return Response({'license_categories': categories})
+
+    def post(self, request):
+        category_name = request.data.get('category')
+        if not category_name:
+            return Response({'error': 'укажите category'}, status=status.HTTP_400_BAD_REQUEST)
+
+        adapter = LicenseCategoryAdapter()
+        cars = adapter.get_cars_by_category(category_name)
+        return Response({'category': category_name, 'cars': cars})
+
+
 class CarListView(APIView):
     def get(self, request):
         cars = Car.objects.filter(status='available')
 
-        # фильтрация по тегам
         tag = request.query_params.get('tag')
         if tag:
             cars = cars.filter(tags__name=tag)
 
-        # фильтрация по вместимости
         min_capacity = request.query_params.get('min_capacity')
         max_capacity = request.query_params.get('max_capacity')
         if min_capacity:
@@ -45,7 +93,6 @@ class CarListView(APIView):
         if max_capacity:
             cars = cars.filter(capacity__lte=max_capacity)
 
-        # фильтрация по цене
         min_price = request.query_params.get('min_price')
         max_price = request.query_params.get('max_price')
         if min_price:
@@ -53,12 +100,10 @@ class CarListView(APIView):
         if max_price:
             cars = cars.filter(price_per_minute__lte=max_price)
 
-        # фильтрация по коробке передач
         steering = request.query_params.get('steering')
         if steering:
             cars = cars.filter(steering=steering)
 
-        # пагинация
         page = request.query_params.get('page', 1)
         page_size = request.query_params.get('page_size', 10)
 
@@ -75,6 +120,7 @@ class CarListView(APIView):
             'results': serializer.data
         })
 
+
 class CarDetailView(APIView):
     def get(self, request, car_id):
         try:
@@ -85,21 +131,22 @@ class CarDetailView(APIView):
             return Response({'error': 'автомобиль не найден'},
                             status=status.HTTP_404_NOT_FOUND)
 
+
 class CarCategoriesView(APIView):
     def get(self, request):
         from cars.composite_iterator import CarCategory, CarLeaf, CarFleet
 
-        fleet = CarFleet("Автопарк Morent")
+        fleet = CarFleet("автопарк morent")
 
-        economy = CarCategory("Эконом-класс")
+        economy = CarCategory("эконом-класс")
         for car in Car.objects.filter(price_per_minute__lt=6)[:5]:
             economy.add(CarLeaf(car))
 
-        comfort = CarCategory("Комфорт-класс")
+        comfort = CarCategory("комфорт-класс")
         for car in Car.objects.filter(price_per_minute__gte=6, price_per_minute__lt=12)[:5]:
             comfort.add(CarLeaf(car))
 
-        business = CarCategory("Бизнес-класс")
+        business = CarCategory("бизнес-класс")
         for car in Car.objects.filter(price_per_minute__gte=12)[:5]:
             business.add(CarLeaf(car))
 
@@ -135,17 +182,18 @@ class CarCategoriesView(APIView):
 
 class CarIteratorView(APIView):
     def get(self, request):
+        from cars.composite_iterator import CarCollection, CarIterator, CarFilterIterator
+
         cars = list(Car.objects.filter(status='available'))
-
-        from cars.composite_iterator import CarIterator, CarFilterIterator
-
-        iterator = CarIterator(cars)
+        collection = CarCollection(cars)
+        iterator = CarIterator(collection)
 
         def is_electric(car):
             return 'electric' in [tag.name for tag in car.tags.all()]
 
         electric_cars = [car for car in cars if is_electric(car)]
-        electric_iterator = CarFilterIterator(electric_cars, is_electric)
+        electric_collection = CarCollection(electric_cars)
+        electric_iterator = CarFilterIterator(electric_collection, is_electric)
 
         all_cars_list = []
         for car in iterator:
@@ -156,7 +204,7 @@ class CarIteratorView(APIView):
             electric_cars_list.append(f"{car.brand} {car.model}")
 
         result = {
-            'total_cars': len(cars),
+            'total_cars': collection.size(),
             'first_car': None,
             'last_car': None,
             'all_cars': all_cars_list,
@@ -170,3 +218,34 @@ class CarIteratorView(APIView):
             result['last_car'] = f"{last.brand} {last.model}"
 
         return Response(result)
+
+
+class RentalFacadeView(APIView):
+    def post(self, request):
+        action = request.data.get('action')
+
+        if action == 'start':
+            facade = RentalFacade()
+            result = facade.start_rental(
+                user=request.user,
+                car_id=request.data.get('car_id'),
+                services=request.data.get('services', [])
+            )
+            return Response(result, status=status.HTTP_200_OK if result.get('success') else status.HTTP_400_BAD_REQUEST)
+
+        elif action == 'end':
+            facade = RentalFacade()
+            result = facade.end_rental(
+                user=request.user,
+                rental_id=request.data.get('rental_id'),
+                end_latitude=request.data.get('end_latitude'),
+                end_longitude=request.data.get('end_longitude')
+            )
+            return Response(result, status=status.HTTP_200_OK if result.get('success') else status.HTTP_400_BAD_REQUEST)
+
+        elif action == 'undo':
+            facade = RentalFacade()
+            result = facade.undo_last_rental_action()
+            return Response({'undo_success': result})
+
+        return Response({'error': 'неизвестное действие'}, status=status.HTTP_400_BAD_REQUEST)

@@ -4,11 +4,12 @@ from .models import User
 
 class UserSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(read_only=True)
+    license_category_display = serializers.CharField(source='get_license_category_display', read_only=True)
 
     class Meta:
         model = User
         fields = ['id', 'email', 'phone', 'first_name', 'last_name',
-                  'role', 'verification_status', 'is_verified']
+                  'role', 'verification_status', 'is_verified', 'license_category', 'license_category_display']
         read_only_fields = ['id', 'role', 'verification_status', 'is_verified']
 
 

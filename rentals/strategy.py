@@ -9,8 +9,7 @@ class PriceStrategy(ABC):
 
 class DefaultPriceStrategy(PriceStrategy):
     def calculate(self, minutes, base_price_per_minute):
-        total = minutes * base_price_per_minute
-        return total
+        return minutes * base_price_per_minute
 
 
 class SubscriptionPriceStrategy(PriceStrategy):
@@ -20,8 +19,7 @@ class SubscriptionPriceStrategy(PriceStrategy):
     def calculate(self, minutes, base_price_per_minute):
         subtotal = minutes * base_price_per_minute
         discount = subtotal * self.discount_percent / 100
-        total = subtotal - discount
-        return total
+        return subtotal - discount
 
 
 class PromotionPriceStrategy(PriceStrategy):
@@ -31,8 +29,7 @@ class PromotionPriceStrategy(PriceStrategy):
     def calculate(self, minutes, base_price_per_minute):
         subtotal = minutes * base_price_per_minute
         discount = subtotal * self.promotion_discount / 100
-        total = subtotal - discount
-        return total
+        return subtotal - discount
 
 
 class CombinedDiscountStrategy(PriceStrategy):
@@ -43,5 +40,18 @@ class CombinedDiscountStrategy(PriceStrategy):
     def calculate(self, minutes, base_price_per_minute):
         subtotal = minutes * base_price_per_minute
         after_subscription = subtotal * (100 - self.subscription_discount) / 100
-        total = after_subscription * (100 - self.promotion_discount) / 100
-        return total
+        return after_subscription * (100 - self.promotion_discount) / 100
+
+
+class LicenseCategoryStrategy(PriceStrategy):
+    def __init__(self, license_category):
+        self.license_category = license_category
+        self.multipliers = {
+            'A': 1.2,
+            'B': 1.0,
+            'C': 1.5
+        }
+
+    def calculate(self, minutes, base_price_per_minute):
+        multiplier = self.multipliers.get(self.license_category, 1.0)
+        return minutes * base_price_per_minute * multiplier

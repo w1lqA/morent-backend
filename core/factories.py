@@ -5,7 +5,7 @@ from django.utils import timezone
 
 
 class CarFactory(ABC):
-    """Абстрактная фабрика для создания автомобилей"""
+    """абстрактная фабрика для создания автомобилей"""
 
     @abstractmethod
     def create_car(self, **kwargs):
@@ -17,7 +17,7 @@ class CarFactory(ABC):
 
 
 class EconomyCarFactory(CarFactory):
-    """Фабрика эконом-класса"""
+    """фабрика эконом-класса"""
 
     def create_car(self, brand="Kia", model="Rio", year=2023, plate_number=None, price_per_minute=5.0, **kwargs):
         from cars.models import Car
@@ -42,7 +42,7 @@ class EconomyCarFactory(CarFactory):
 
 
 class BusinessCarFactory(CarFactory):
-    """Фабрика бизнес-класса"""
+    """фабрика бизнес-класса"""
 
     def create_car(self, brand="Mercedes", model="E-Class", year=2024, plate_number=None, price_per_minute=15.0,
                    **kwargs):
@@ -68,7 +68,7 @@ class BusinessCarFactory(CarFactory):
 
 
 class SportCarFactory(CarFactory):
-    """Фабрика спорт-класса"""
+    """фабрика спорт-класса"""
 
     def create_car(self, brand="Ferrari", model="488", year=2024, plate_number=None, price_per_minute=30.0, **kwargs):
         from cars.models import Car
@@ -93,7 +93,7 @@ class SportCarFactory(CarFactory):
 
 
 class RentalFactory(ABC):
-    """Абстрактная фабрика для создания аренды"""
+    """абстрактная фабрика для создания аренды"""
 
     @abstractmethod
     def create_rental(self, user, car, start_time=None, **kwargs):
@@ -101,7 +101,7 @@ class RentalFactory(ABC):
 
 
 class StandardRentalFactory(RentalFactory):
-    """Стандартная фабрика аренды"""
+    """стандартная фабрика аренды"""
 
     def create_rental(self, user, car, start_time=None, **kwargs):
         from rentals.models import Rental
@@ -118,7 +118,7 @@ class StandardRentalFactory(RentalFactory):
 
 
 class UserFactory(ABC):
-    """Абстрактная фабрика для создания пользователей"""
+    """абстрактная фабрика для создания пользователей"""
 
     @abstractmethod
     def create_user(self, email, phone, **kwargs):
@@ -126,7 +126,7 @@ class UserFactory(ABC):
 
 
 class VerifiedUserFactory(UserFactory):
-    """Фабрика верифицированных пользователей"""
+    """фабрика верифицированных пользователей"""
 
     def create_user(self, email, phone, **kwargs):
         from users.models import User, VerificationStatus, Role
@@ -148,7 +148,7 @@ class VerifiedUserFactory(UserFactory):
 
 
 class UnverifiedUserFactory(UserFactory):
-    """Фабрика неверифицированных пользователей"""
+    """фабрика неверифицированных пользователей"""
 
     def create_user(self, email, phone, **kwargs):
         from users.models import User, VerificationStatus, Role
@@ -164,3 +164,4 @@ class UnverifiedUserFactory(UserFactory):
             is_verified=False,
             **kwargs
         )
+

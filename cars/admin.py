@@ -8,13 +8,19 @@ class CarTagMapInline(admin.TabularInline):
 
 @admin.register(Car)
 class CarAdmin(admin.ModelAdmin):
-    list_display = ('brand', 'model', 'plate_number', 'status', 'price_per_minute')
-    list_filter = ('status', 'brand')
+    list_display = ('brand', 'model', 'plate_number', 'status', 'price_per_minute', 'required_license', 'capacity')
+    list_filter = ('status', 'brand', 'required_license', 'steering')
     search_fields = ('brand', 'model', 'plate_number')
     inlines = [CarTagMapInline]
     fieldsets = (
         (None, {
             'fields': ('brand', 'model', 'year', 'plate_number', 'status', 'price_per_minute', 'location')
+        }),
+        ('характеристики', {
+            'fields': ('capacity', 'steering', 'gasoline', 'required_license')
+        }),
+        ('описание', {
+            'fields': ('description',)
         }),
     )
 

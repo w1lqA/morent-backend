@@ -9,7 +9,7 @@ from cars.models import Car
 from .serializers import RentalSerializer, StartRentalSerializer, EndRentalSerializer
 from .strategy import (
     DefaultPriceStrategy, SubscriptionPriceStrategy,
-    PromotionPriceStrategy, CombinedDiscountStrategy
+    PromotionPriceStrategy, CombinedDiscountStrategy, LicenseCategoryStrategy
 )
 from .command import StartRentalCommand, EndRentalCommand, RentalCommandInvoker
 from .decorators import RentalServiceFactory
@@ -37,32 +37,32 @@ class StartRentalView(APIView):
         if car.status != 'available':
             return Response({'error': 'автомобиль недоступен'}, status=status.HTTP_400_BAD_REQUEST)
 
-        rental = Rental.objects.create(
-            user=user,
-            car=car,
-            start_time=timezone.now(),
-            status='active'
-        )
+        if user.license_category != car.required_license:
+            return Response({
+                'error': f'для аренды этого авто нужна категория прав {car.get_required_license_display()}'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        services = serializer.validated_data.get('services', [])
+
+        rental, rental_service = Rental.create_rental(user, car, services)
 
         command = StartRentalCommand(rental.id, car, user)
         invoker = RentalCommandInvoker()
         invoker.execute_command(command)
 
-        base_price_per_minute = float(car.price_per_minute)
-
-        strategy_name = 'subscription' if hasattr(user, 'usersubscription') else 'default'
-
         pricing_service = PricingService()
         pricing_service.register_strategy('default', DefaultPriceStrategy())
         pricing_service.register_strategy('subscription', SubscriptionPriceStrategy(10))
+        pricing_service.register_strategy('license_a', LicenseCategoryStrategy('A'))
+        pricing_service.register_strategy('license_b', LicenseCategoryStrategy('B'))
+        pricing_service.register_strategy('license_c', LicenseCategoryStrategy('C'))
 
+        base_price_per_minute = float(car.price_per_minute)
+
+        strategy_name = f'license_{user.license_category.lower()}'
         price_per_minute = pricing_service.calculate_price(1, strategy_name, base_price_per_minute)
 
-        services = serializer.validated_data.get('services', [])
-        rental_service = RentalServiceFactory.create_rental_with_services(rental, price_per_minute, services)
-        total_price = rental_service.get_price()
-
-        rental.total_price = Decimal(str(total_price))
+        rental.total_price = Decimal(str(rental_service.get_price()))
         rental.save()
 
         event_manager = RentalEventManager()
@@ -75,8 +75,9 @@ class StartRentalView(APIView):
             'message': 'аренда успешно начата',
             'services': rental_service.get_description(),
             'price_per_minute': float(price_per_minute),
-            'total_with_services': float(total_price)
+            'total_with_services': float(rental.total_price)
         }, status=status.HTTP_201_CREATED)
+
 
 class EndRentalView(APIView):
     permission_classes = [IsAuthenticated]
@@ -163,7 +164,10 @@ class PricingDemoView(APIView):
             'subscription_20': SubscriptionPriceStrategy(20),
             'promotion_15': PromotionPriceStrategy(15),
             'promotion_25': PromotionPriceStrategy(25),
-            'combined': CombinedDiscountStrategy(10, 15)
+            'combined': CombinedDiscountStrategy(10, 15),
+            'license_a': LicenseCategoryStrategy('A'),
+            'license_b': LicenseCategoryStrategy('B'),
+            'license_c': LicenseCategoryStrategy('C')
         }
 
         results = {}

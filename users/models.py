@@ -4,6 +4,7 @@ from django.db import models
 from django.core.validators import MaxLengthValidator, MinLengthValidator
 from django.core.exceptions import ValidationError
 
+
 class Role(models.TextChoices):
     USER = 'user', 'Пользователь'
     ADMIN = 'admin', 'Администратор'
@@ -16,13 +17,17 @@ class VerificationStatus(models.TextChoices):
     REJECTED = 'rejected', 'Отклонен'
 
 
+class LicenseCategory(models.TextChoices):
+    A = 'A', 'Мотоциклы'
+    B = 'B', 'Легковые авто'
+    C = 'C', 'Грузовые авто'
+
 class UserManager(BaseUserManager):
     def create_user(self, email, phone, password=None, **extra_fields):
         if not email:
             raise ValueError('Email обязателен')
         if not phone:
             raise ValueError('Телефон обязателен')
-
         email = self.normalize_email(email)
         user = self.model(email=email, phone=phone, **extra_fields)
         user.set_password(password)
@@ -36,7 +41,6 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('role', Role.ADMIN)
         extra_fields.setdefault('verification_status', VerificationStatus.VERIFIED)
         extra_fields.setdefault('is_verified', True)
-
         return self.create_user(email, phone, password, **extra_fields)
 
 
@@ -58,12 +62,21 @@ def validate_driving_license_number(value):
 class User(AbstractUser):
     phone = models.CharField(max_length=20, unique=True)
 
-    passport_series = models.CharField(max_length=4, blank=True, null=True)
-    passport_number = models.CharField(max_length=6, blank=True, null=True)
+    passport_series = models.CharField(
+        max_length=4, blank=True, null=True,
+        validators=[MaxLengthValidator(4), MinLengthValidator(4)]
+    )
+    passport_number = models.CharField(
+        max_length=6, blank=True, null=True,
+        validators=[MaxLengthValidator(6), MinLengthValidator(6)]
+    )
     passport_issued_by = models.CharField(max_length=255, blank=True, null=True)
     passport_expiry_date = models.DateField(blank=True, null=True)
 
-    driving_license_number = models.CharField(max_length=20, blank=True, null=True)
+    driving_license_number = models.CharField(
+        max_length=20, blank=True, null=True,
+        validators=[MinLengthValidator(10)]
+    )
     driving_license_category = models.CharField(max_length=10, blank=True, null=True)
     driving_license_expiry_date = models.DateField(blank=True, null=True)
 
@@ -72,6 +85,12 @@ class User(AbstractUser):
         max_length=20,
         choices=VerificationStatus.choices,
         default=VerificationStatus.PENDING
+    )
+
+    license_category = models.CharField(
+        max_length=10,
+        choices=LicenseCategory.choices,
+        default=LicenseCategory.B
     )
 
     username = None
